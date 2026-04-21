@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>精緻五子棋</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #f0f0f0;
+    --card: #ffffff;
+    --board: #d4aa6e;
+    --board-line: #8b6340;
+    --board-star: #7a5530;
+    --text: #1a1a2e;
+    --text-sub: #666680;
+    --btn-undo: #ffffff;
+    --btn-restart: #5c5cf0;
+    --btn-mode: #1a1a2e;
+    --radius-card: 20px;
+    --radius-btn: 18px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: 'Noto Sans TC', sans-serif;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .page {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 24px;
+    gap: 16px;
+  }
+
+  /* Title */
+  h1 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 2px;
+  }
+
+  /* Status bar card */
+  .status-card {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius-card);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  }
+
+  .turn-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+
+  .stone-icon {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+
+  .stone-icon.black {
+    background: radial-gradient(circle at 38% 32%, #555, #111 65%);
+    box-shadow: 1px 2px 5px rgba(0,0,0,0.35);
+  }
+
+  .stone-icon.white {
+    background: radial-gradient(circle at 38% 32%, #fff, #e0dbd0 65%);
+    box-shadow: 1px 2px 5px rgba(0,0,0,0.15);
+    border: 1px solid #d8d0c0;
+  }
+
+  .turn-label {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+
+  .mode-pill {
+    background: var(--bg);
+    border-radius: 30px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-sub);
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
+
+
+  /* Board card */
+  .board-card {
+    width: 100%;
+    background: var(--board);
+    border-radius: var(--radius-card);
+    padding: 18px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    position: relative;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: crosshair;
+    border-radius: 6px;
+    touch-action: none;
+  }
+
+  /* Bottom buttons */
+  .btn-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 10px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: var(--radius-btn);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 17px 0;
+    letter-spacing: 0.03em;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-undo {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+
+  .btn-undo:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+  .btn-undo:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-restart {
+    background: var(--btn-restart);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(92,92,240,0.35);
+  }
+
+  .btn-restart:hover { box-shadow: 0 6px 20px rgba(92,92,240,0.45); }
+
+  .btn-mode {
+    width: 100%;
+    background: var(--btn-mode);
+    color: #fff;
+    border-radius: var(--radius-btn);
+    border: none;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 17px 0;
+    letter-spacing: 0.03em;
+    transition: transform 0.12s ease, background 0.2s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  }
+
+  .btn-mode:active { transform: scale(0.97); }
+  .btn-mode:hover { background: #2d2d50; }
+
+  /* Hint toggle */
+  .btn-hint {
+    width: 100%;
+    padding: 17px;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-btn);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-sub);
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-hint.active {
+    background: #fff8e1;
+    border-color: #f5c500;
+    color: #b8900a;
+  }
+  .btn-hint:active { transform: scale(0.97); }
+
+  /* Win overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(240,240,240,0.78);
+    backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .overlay.show { opacity: 1; pointer-events: all; }
+
+  .win-card {
+    background: var(--card);
+    border-radius: 28px;
+    padding: 44px 44px 36px;
+    text-align: center;
+    width: 88%;
+    max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    transform: scale(0.92) translateY(16px);
+    transition: transform 0.38s cubic-bezier(0.34,1.45,0.64,1);
+  }
+
+  .overlay.show .win-card { transform: scale(1) translateY(0); }
+
+  .win-stones {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .win-s {
+    width: 14px; height: 14px; border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s cubic-bezier(0.34,1.5,0.64,1);
+  }
+
+  .overlay.show .win-s { opacity: 1; transform: scale(1); }
+  .overlay.show .win-s:nth-child(1){ transition-delay:0.05s; }
+  .overlay.show .win-s:nth-child(2){ transition-delay:0.10s; }
+  .overlay.show .win-s:nth-child(3){ transition-delay:0.15s; }
+  .overlay.show .win-s:nth-child(4){ transition-delay:0.20s; }
+  .overlay.show .win-s:nth-child(5){ transition-delay:0.25s; }
+
+  .win-s.black { background: #111; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); }
+  .win-s.white { background: #fff; border: 1.5px solid #ccc; }
+
+  .win-title {
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .win-sub {
+    font-size: 0.82rem;
+    color: var(--text-sub);
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+
+  .win-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--btn-restart);
+    border: none;
+    border-radius: 16px;
+    color: #fff;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    box-shadow: 0 4px 14px rgba(92,92,240,0.3);
+    transition: all 0.15s;
+  }
+
+  .win-btn:hover { box-shadow: 0 6px 20px rgba(92,92,240,0.4); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>精緻五子棋</h1>
+
+  <!-- Status card -->
+  <div class="status-card">
+    <div class="turn-left">
+      <div class="stone-icon black" id="turnStone"></div>
+      <div class="turn-label" id="turnLabel">黑棋回合</div>
+    </div>
+    <div class="mode-pill" id="modePill">雙人模式</div>
+  </div>
+
+
+
+  <!-- Board -->
+  <div class="board-card">
+    <canvas id="board"></canvas>
+  </div>
+
+  <!-- Bottom buttons -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:10px;width:100%">
+    <button class="btn btn-undo" id="undoBtn" onclick="undoMove()">悔棋</button>
+    <button class="btn-hint" id="hintBtn" onclick="toggleHint()">💡 提示</button>
+    <button class="btn btn-restart" onclick="resetGame()">重新開始</button>
+  </div>
+  <button class="btn-mode" id="modeBtn" onclick="toggleMode()">切換至：單機 AI 模式</button>
+  </div>
+
+</div>
+
+<!-- Win overlay -->
+<div class="overlay" id="overlay">
+  <div class="win-card">
+    <div class="win-stones" id="winStones"></div>
+    <div class="win-title" id="winTitle">黑棋獲勝！</div>
+    <div class="win-sub" id="winSub">五子連珠 · 共 0 手</div>
+    <button class="win-btn" onclick="resetGame()">再來一局</button>
+  </div>
+</div>
+
+<script>
+const BOARD_SIZE = 15;
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+
+// Dynamic sizing — recalculated on resize
+let CELL, PAD, STONE_R, SZ;
+
+function calcSize() {
+  // page padding 16px each side + board-card padding 18px each side = 68px total
+  const avail = window.innerWidth - 68;
+  CELL = avail / (BOARD_SIZE - 1);
+  PAD  = CELL * 0.55;
+  STONE_R = CELL * 0.44;
+  SZ   = Math.round(CELL * (BOARD_SIZE - 1) + PAD * 2);
+  canvas.width  = SZ;
+  canvas.height = SZ;
+}
+
+let board, history, currentPlayer, gameOver, winCells, lastMove;
+let mode = 'pvp'; // pvp | pvc
+let hintOn = false;
+let hintCells = []; // [{r,c,rank}]
+let hoverCell = null;
+
+
+/* ── AUDIO ── */
+let _ac = null;
+
+function _getAC() {
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (_ac.state === 'suspended') _ac.resume();
+  return _ac;
+}
+
+function unlockAudio() { _getAC(); }
+
+function playStoneSound(isBlack) {
+  try {
+    const ac = _getAC();
+    const now = ac.currentTime;
+    const sr = ac.sampleRate;
+
+    // ── 白噪音 buffer（40ms）──
+    const len = Math.floor(sr * 0.04);
+    const buf = ac.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+
+    // ── 帶通濾波器 ──
+    // 黑棋：較低頻段，木頭厚重感
+    // 白棋：較高頻段，清脆感
+    const bp = ac.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = isBlack ? 800 : 1200;
+    bp.Q.value = isBlack ? 0.9 : 1.1;
+
+    // 第二個帶通疊加：增加棋子本體的「喀」聲頻段
+    const bp2 = ac.createBiquadFilter();
+    bp2.type = 'bandpass';
+    bp2.frequency.value = isBlack ? 2200 : 3000;
+    bp2.Q.value = 2.5;
+
+    // 高頻截止：去除刺耳的高頻白噪音
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = isBlack ? 5000 : 6500;
+    lp.Q.value = 0.5;
+
+    // ── 音量包絡：瞬間起音，快速衰減 ──
+    const gain1 = ac.createGain();  // bp1 通道
+    gain1.gain.setValueAtTime(isBlack ? 1.2 : 0.95, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    const gain2 = ac.createGain();  // bp2 通道（更短更快）
+    gain2.gain.setValueAtTime(isBlack ? 0.6 : 0.5, now);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+
+    const master = ac.createGain();
+    master.gain.value = 1.0;
+
+    // ── 兩個濾波通道合併 ──
+    // 通道1：低頻木板共鳴
+    src.connect(bp);
+    bp.connect(lp);
+    lp.connect(gain1);
+    gain1.connect(master);
+
+    // 通道2：高頻撞擊點「喀」（另接一個 src 的輸出）
+    src.connect(bp2);
+    bp2.connect(gain2);
+    gain2.connect(master);
+
+    master.connect(ac.destination);
+    src.start(now);
+    src.stop(now + 0.07);
+
+  } catch(e) {}
+}
+
+
+function px(i) { return PAD + i * CELL; }
+
+/* ── INIT ── */
+function initBoard() {
+  calcSize();
+  board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
+  history = [];
+  currentPlayer = 1;
+  gameOver = false;
+  winCells = [];
+  lastMove = null;
+  hoverCell = null;
+  updateUI();
+  updateHints();
+  draw();
+}
+
+/* ── DRAW ── */
+function draw() {
+  ctx.clearRect(0, 0, SZ, SZ);
+
+  // Board fill
+  const bg = ctx.createLinearGradient(0, 0, SZ, SZ);
+  bg.addColorStop(0, '#d9b278');
+  bg.addColorStop(1, '#c9a060');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, SZ, SZ);
+
+
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(100,65,20,0.65)';
+  ctx.lineWidth = 1;
+  ctx.translate(0.5, 0.5); // snap to pixel grid to avoid sub-pixel blur
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    ctx.beginPath(); ctx.moveTo(Math.round(px(i)), Math.round(px(0))); ctx.lineTo(Math.round(px(i)), Math.round(px(BOARD_SIZE-1))); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(Math.round(px(0)), Math.round(px(i))); ctx.lineTo(Math.round(px(BOARD_SIZE-1)), Math.round(px(i))); ctx.stroke();
+  }
+  ctx.translate(-0.5, -0.5);
+
+  // Border
+  ctx.strokeStyle = 'rgba(80,50,15,0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(px(0), px(0), CELL*(BOARD_SIZE-1), CELL*(BOARD_SIZE-1));
+
+  // Star points
+  ctx.fillStyle = 'rgba(80,50,15,0.7)';
+  for (const [r,c] of [[3,3],[3,11],[7,7],[11,3],[11,11]]) {
+    ctx.beginPath(); ctx.arc(px(c), px(r), 3.5, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Hint dots (top 3 suggestions)
+  if (hintOn && !gameOver && hintCells.length) {
+    const isBlackTurn = currentPlayer === 1;
+    const colors = isBlackTurn ? [
+      { fill: 'rgba(80,80,80,0.75)',  stroke: 'rgba(40,40,40,0.9)' },
+      { fill: 'rgba(80,80,80,0.45)',  stroke: 'rgba(40,40,40,0.6)' },
+      { fill: 'rgba(80,80,80,0.25)',  stroke: 'rgba(40,40,40,0.35)' },
+    ] : [
+      { fill: 'rgba(255,255,255,0.85)', stroke: 'rgba(180,170,150,0.9)' },
+      { fill: 'rgba(255,255,255,0.55)', stroke: 'rgba(180,170,150,0.6)' },
+      { fill: 'rgba(255,255,255,0.30)', stroke: 'rgba(180,170,150,0.35)' },
+    ];
+    for (let i = 0; i < hintCells.length; i++) {
+      const { r, c } = hintCells[i];
+      const col = colors[i];
+      const radius = STONE_R * (0.38 - i * 0.06);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(px(c), px(r), radius, 0, Math.PI * 2);
+      ctx.fillStyle = col.fill;
+      ctx.fill();
+      ctx.strokeStyle = col.stroke;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Rank number
+      if (i === 0) {
+        ctx.fillStyle = isBlackTurn ? 'rgba(255,255,255,0.9)' : 'rgba(100,90,70,0.9)';
+        ctx.font = `bold ${Math.round(CELL * 0.28)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('1', px(c), px(r));
+      }
+      ctx.restore();
+    }
+  }
+
+  // Hover ghost
+  if (hoverCell && !gameOver) {
+    const [hr, hc] = hoverCell;
+    if (!board[hr][hc]) {
+      ctx.save(); ctx.globalAlpha = 0.28;
+      drawStone(hr, hc, currentPlayer);
+      ctx.restore();
+    }
+  }
+
+  // Stones
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (board[r][c]) drawStone(r, c, board[r][c]);
+
+  // Last move marker
+  if (lastMove && !winCells.length) {
+    const [lr, lc] = lastMove;
+    const isBlack = board[lr][lc] === 1;
+    ctx.save();
+    ctx.strokeStyle = isBlack ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1.8;
+    const s = 5, mx = px(lc), my = px(lr);
+    ctx.beginPath(); ctx.moveTo(mx-s, my); ctx.lineTo(mx+s, my); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mx, my-s); ctx.lineTo(mx, my+s); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Win highlight: yellow ring around each winning stone
+  if (winCells.length >= 5) {
+    ctx.save();
+    ctx.strokeStyle = '#f5c500';
+    ctx.lineWidth = Math.max(2, CELL * 0.09);
+    ctx.shadowColor = 'rgba(245,197,0,0.6)';
+    ctx.shadowBlur = 6;
+    for (const [r, c] of winCells) {
+      ctx.beginPath();
+      ctx.arc(px(c), px(r), STONE_R + CELL * 0.09, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawStone(r, c, player) {
+  const x = px(c), y = px(r);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 7;
+  ctx.shadowOffsetX = 1.5;
+  ctx.shadowOffsetY = 2.5;
+
+  ctx.beginPath();
+  ctx.arc(x, y, STONE_R, 0, Math.PI * 2);
+
+  if (player === 1) {
+    const g = ctx.createRadialGradient(x-4, y-4, 1, x, y, STONE_R);
+    g.addColorStop(0, '#484848');
+    g.addColorStop(0.5, '#1a1a1a');
+    g.addColorStop(1, '#000');
+    ctx.fillStyle = g;
+  } else {
+    const g = ctx.createRadialGradient(x-4, y-4, 1, x, y, STONE_R);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.6, '#ece8df');
+    g.addColorStop(1, '#d0c8b8');
+    ctx.fillStyle = g;
+  }
+  ctx.fill();
+
+  // Rim
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+  if (player === 2) {
+    ctx.strokeStyle = 'rgba(160,140,110,0.6)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Gloss
+  const shine = ctx.createRadialGradient(x-5, y-5, 1, x-3, y-3, STONE_R*0.7);
+  shine.addColorStop(0, player===1 ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.55)');
+  shine.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = shine;
+  ctx.beginPath(); ctx.arc(x, y, STONE_R, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+/* ── INTERACTION ── */
+function getCell(ex, ey) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = SZ / rect.width, sy = SZ / rect.height;
+  const bx = (ex - rect.left) * sx;
+  const by = (ey - rect.top) * sy;
+  const c = Math.round((bx - PAD) / CELL);
+  const r = Math.round((by - PAD) / CELL);
+  if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return null;
+  if (Math.hypot(bx - px(c), by - px(r)) > CELL * 0.65) return null;
+  return [r, c];
+}
+
+canvas.addEventListener('click', e => {
+  unlockAudio();
+  if (gameOver || (mode==='pvc' && currentPlayer===2)) return;
+  const cell = getCell(e.clientX, e.clientY);
+  if (!cell || board[cell[0]][cell[1]]) return;
+  placeStone(...cell);
+  if (!gameOver && mode==='pvc' && currentPlayer===2) setTimeout(aiMove, 300);
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (gameOver) return;
+  hoverCell = getCell(e.clientX, e.clientY);
+  draw();
+});
+
+canvas.addEventListener('mouseleave', () => { hoverCell = null; draw(); });
+
+// Touch
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  unlockAudio();
+  if (gameOver || (mode==='pvc' && currentPlayer===2)) return;
+  const t = e.changedTouches[0];
+  const cell = getCell(t.clientX, t.clientY);
+  if (!cell || board[cell[0]][cell[1]]) return;
+  placeStone(...cell);
+  if (!gameOver && mode==='pvc' && currentPlayer===2) setTimeout(aiMove, 300);
+}, { passive: false });
+
+/* ── GAME LOGIC ── */
+function placeStone(r, c) {
+  board[r][c] = currentPlayer;
+  history.push({ r, c, player: currentPlayer });
+  lastMove = [r, c];
+  playStoneSound(currentPlayer === 1);
+  const win = checkWin(r, c, currentPlayer);
+  if (win) {
+    winCells = win; gameOver = true; draw();
+    const name = currentPlayer===1 ? '黑棋' : '白棋';
+  } else if (history.length === BOARD_SIZE * BOARD_SIZE) {
+    gameOver = true; draw();
+  } else {
+    currentPlayer = currentPlayer===1 ? 2 : 1;
+    updateUI(); updateHints(); draw();
+  }
+  updateUndoBtn();
+}
+
+function undoMove() {
+  if (gameOver || history.length === 0) return;
+  // In PvC, undo 2 moves (player + AI)
+  const times = (mode==='pvc' && history.length >= 2) ? 2 : 1;
+  for (let i = 0; i < times; i++) {
+    const last = history.pop();
+    if (!last) break;
+    board[last.r][last.c] = 0;
+    lastMove = history.length ? [history[history.length-1].r, history[history.length-1].c] : null;
+    currentPlayer = last.player;
+  }
+  winCells = []; gameOver = false;
+  updateUI(); updateHints(); updateUndoBtn(); draw();
+}
+
+function checkWin(r, c, p) {
+  for (const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]) {
+    const cells = [[r,c]];
+    for(let d=1;d<5;d++){const nr=r+dr*d,nc=c+dc*d;if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE||board[nr][nc]!==p)break;cells.push([nr,nc]);}
+    for(let d=1;d<5;d++){const nr=r-dr*d,nc=c-dc*d;if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE||board[nr][nc]!==p)break;cells.push([nr,nc]);}
+    if(cells.length>=5) return cells.slice(0,5);
+  }
+  return null;
+}
+
+/* ── AI ── */
+function aiMove() {
+  const m = getBest();
+  if (m) placeStone(m[0], m[1]);
+}
+
+function getBest() {
+  const top = getTopN(1);
+  return top.length ? [top[0].r, top[0].c] : [7,7];
+}
+
+function getTopN(n) {
+  const scored = [];
+  for(let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++) {
+    if(board[r][c]||!hasNeighbor(r,c)) continue;
+    const s = scoreCell(r,c,2)*1.1 + scoreCell(r,c,1);
+    scored.push({r, c, s});
+  }
+  scored.sort((a,b)=>b.s-a.s);
+  return scored.slice(0,n);
+}
+
+function hasNeighbor(r,c) {
+  for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++) {
+    if(!dr&&!dc) continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<BOARD_SIZE&&nc>=0&&nc<BOARD_SIZE&&board[nr][nc]) return true;
+  }
+  return false;
+}
+
+function scoreCell(r,c,p) {
+  board[r][c]=p; let s=0;
+  for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]) s+=evalLine(r,c,dr,dc,p);
+  board[r][c]=0; return s;
+}
+
+function evalLine(r,c,dr,dc,p) {
+  let cnt=1,oe=0;
+  for(let d=1;d<5;d++){const nr=r+dr*d,nc=c+dc*d;if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE)break;if(board[nr][nc]===p)cnt++;else{if(!board[nr][nc])oe++;break;}}
+  for(let d=1;d<5;d++){const nr=r-dr*d,nc=c-dc*d;if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE)break;if(board[nr][nc]===p)cnt++;else{if(!board[nr][nc])oe++;break;}}
+  if(cnt>=5)return 100000; if(cnt===4&&oe>=1)return 10000;
+  if(cnt===3&&oe===2)return 1000; if(cnt===3&&oe===1)return 200;
+  if(cnt===2&&oe===2)return 100; if(cnt===2&&oe===1)return 20;
+  return cnt*oe;
+}
+
+/* ── UI ── */
+function updateHints() {
+  if (hintOn && !gameOver) {
+    hintCells = getTopN(3);
+  } else {
+    hintCells = [];
+  }
+}
+
+function toggleHint() {
+  hintOn = !hintOn;
+  const btn = document.getElementById('hintBtn');
+  btn.textContent = hintOn ? '💡 提示：開' : '💡 提示';
+  btn.classList.toggle('active', hintOn);
+  updateHints();
+  draw();
+}
+
+function updateUI() {
+  const isB = currentPlayer===1;
+  document.getElementById('turnStone').className = 'stone-icon '+(isB?'black':'white');
+  document.getElementById('turnLabel').textContent = isB ? '黑棋回合' : '白棋回合';
+}
+
+function updateUndoBtn() {
+  document.getElementById('undoBtn').disabled = history.length === 0 || gameOver;
+}
+
+
+
+function showWin(name, player) {}
+
+function showDraw() {}
+
+function resetGame() {
+  document.getElementById('overlay').classList.remove('show');
+  initBoard();
+  updateUndoBtn();
+}
+
+function toggleMode() {
+  mode = mode==='pvp' ? 'pvc' : 'pvp';
+  document.getElementById('modePill').textContent = mode==='pvp' ? '雙人模式' : 'AI 模式';
+  document.getElementById('modeBtn').textContent = mode==='pvp' ? '切換至：單機 AI 模式' : '切換至：雙人模式';
+  resetGame();
+}
+
+window.addEventListener('resize', () => {
+  calcSize();
+  draw();
+});
+
+initBoard();
+updateUndoBtn();
+</script>
+</body>
+</html>
